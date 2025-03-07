@@ -7,11 +7,38 @@ from IPython.display import clear_output
 from sklearn.cluster import KMeans
 
 class AntColonyOptimization:
-    # Initialize ACO parameters
+    """
+    Ant Colony Optimization algorithm for image segmentation.
+    
+    This class implements an ACO approach to segment grayscale images into multiple regions
+    by simulating artificial ants that deposit pheromones based on image characteristics.
+    
+    Attributes:
+        image (ndarray): Input grayscale image to be segmented
+        height (int): Height of the input image
+        width (int): Width of the input image
+        n_segments (int): Number of segments to identify
+        ants (int): Number of ants in the colony
+        iterations (int): Maximum number of iterations for the algorithm
+        alpha (float): Pheromone importance factor
+        beta (float): Heuristic information importance factor
+        p (float): Pheromone evaporation rate
+        q (float): Pheromone deposit factor
+        tau_0 (float): Initial pheromone value
+        tau (ndarray): Pheromone matrix for each segment
+        edge_info (ndarray): Edge information extracted from the image
+        n (ndarray): Heuristic information based on edge information
+        probability_maps (ndarray): Probability maps for each segment
+        segment_labels (ndarray): Initial segment labels from k-means
+        best_segmentation (ndarray): Best segmentation found so far
+        best_fitness (float): Fitness value of the best segmentation
+    """
     def __init__(self, image, n_segments=5, ants=100, iterations=50, alpha=1.0, beta=2.0, p=0.5,
                 q=100.0, tau_0=0.1):
-        # Defined parameters
-        self.image = image               # array
+        """
+        Initialize the Ant Colony Optimization algorithm for image segmentation.
+        """
+        self.image = image               # ndarray: input grayscale image to be segmented
         self.height, self.width = image.shape
         self.n_segments = n_segments     # int: number of segments to identify
         self.ants = ants                 # int: num ants in colony
@@ -42,27 +69,17 @@ class AntColonyOptimization:
         self.best_segmentation = None
         self.best_fitness = float('-inf')
 
-    def initialize_kmeans_seeds(self):
-        """Initialize segment seeds using k-means clustering"""
-        # Reshape image for k-means
-        pixels = self.image.reshape(-1, 1)
-        
-        # Apply k-means clustering
-        kmeans = KMeans(n_clusters=self.n_segments, random_state=42)
-        labels = kmeans.fit_predict(pixels)
-        
-        # Reshape labels back to image dimensions
-        self.segment_labels = labels.reshape(self.height, self.width)
-        
-        # Create initial probability maps for each segment
-        for segment in range(self.n_segments):
-            # Initialize higher pheromone for pixels in this segment
-            self.tau[segment][self.segment_labels == segment] = self.tau_0 * 3
-            
-            # Initialize probability map for this segment
-            self.probability_maps[segment][self.segment_labels == segment] = 1.0
-
     def run(self, visualize_progress=True):
+        """
+        Run the Ant Colony Optimization algorithm for image segmentation.
+        
+        Args:
+            visualize_progress (bool, optional): Whether to visualize the progress
+                during optimization. Defaults to True.
+                
+        Returns:
+            ndarray: The best segmentation found by the algorithm.
+        """
         for iteration in range(self.iterations):
             print(f"Running Iteration {iteration}")
             # Arrays to store ant paths for each segment
@@ -116,8 +133,33 @@ class AntColonyOptimization:
         
         return self.best_segmentation
 
+    def initialize_kmeans_seeds(self):
+        """
+        Initialize segment seeds using k-means clustering
+        """
+        # Reshape image for k-means
+        pixels = self.image.reshape(-1, 1)
+        
+        # Apply k-means clustering
+        kmeans = KMeans(n_clusters=self.n_segments, random_state=42)
+        labels = kmeans.fit_predict(pixels)
+        
+        # Reshape labels back to image dimensions
+        self.segment_labels = labels.reshape(self.height, self.width)
+        
+        # Create initial probability maps for each segment
+        for segment in range(self.n_segments):
+            # Initialize higher pheromone for pixels in this segment
+            self.tau[segment][self.segment_labels == segment] = self.tau_0 * 3
+            
+            # Initialize probability map for this segment
+            self.probability_maps[segment][self.segment_labels == segment] = 1.0
+
+
     def _initialize_ant_positions(self, segment):
-        """Initialize ant positions with bias towards the segment"""
+        """
+        Initialize ant positions with bias towards the provided segment
+        """
         positions = []
         for _ in range(self.ants):
             # Place ant on a pixel likely to belong to this segment
@@ -136,6 +178,9 @@ class AntColonyOptimization:
         return positions
 
     def _get_neighbors(self, pos):
+        """
+        Get the 8-connected neighbors of a given position.
+        """
         i, j = pos
         neighbors = []
 
@@ -153,7 +198,9 @@ class AntColonyOptimization:
         return neighbors
 
     def _choose_next_position(self, current_pos, next_positions, segment):
-        """Choose next position based on pheromone and heuristic for the specific segment"""
+        """
+        Choose next position based on pheromone and heuristic for the specific segment
+        """
         probabilities = []
 
         for pos in next_positions:
@@ -182,7 +229,9 @@ class AntColonyOptimization:
         return next_positions[-1]
 
     def _create_segmentations(self, all_segment_paths):
-        """Create segmentation mask for each segment based on ant paths"""
+        """
+        Create segmentation mask for each segment based on ant paths
+        """
         # Initialize segmentation masks
         segmentations = np.zeros((self.n_segments, self.height, self.width), dtype=bool)
         
@@ -215,7 +264,9 @@ class AntColonyOptimization:
         return final_segmentation
 
     def _evaluate_fitness(self, segmentation):
-        """Evaluate the fitness of a multi-region segmentation"""
+        """
+        Evaluate the fitness of a multi-region segmentation
+        """
         # Calculate inter-region edge strength
         edge_fitness = 0
         region_homogeneity = 0
@@ -251,7 +302,9 @@ class AntColonyOptimization:
         return fitness
 
     def _update_pheromone(self, all_segment_paths, segmentation, fitness):
-        """Update pheromone levels for each segment"""
+        """
+        Update pheromone levels for each segment
+        """
         # Evaporation for all segments
         self.tau *= (1 - self.p)
         
@@ -276,7 +329,9 @@ class AntColonyOptimization:
             self.tau[segment][mask] += q * 1.5
 
     def _update_probability_maps(self):
-        """Update probability maps for each segment based on pheromone levels"""
+        """
+        Update probability maps for each segment based on pheromone levels
+        """
         # Calculate total pheromone at each pixel across all segments
         total_pheromone = np.sum(self.tau, axis=0)
         
@@ -285,7 +340,9 @@ class AntColonyOptimization:
             self.probability_maps[segment] = self.tau[segment] / (total_pheromone + 1e-10)
 
     def _visualize_progress(self, iteration, segmentation):
-        """Visualize the current state of segmentation"""
+        """
+        Visualize the current state of segmentation
+        """
         plt.figure(figsize=(15, 5))
         
         # Original image
