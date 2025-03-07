@@ -108,10 +108,6 @@ ACO simulates a colony of ants moving through a graph, looking for optimal paths
 <p align="center">
   <img src="aco_diagram.PNG" />
 </p>
-<<<<<<< Updated upstream
-<p align="center"><em> Figure 1: Diagram representation of Ant Colony Optimization. Step 1: Ants mark possible trails from food to nest using their pheromones. The pheromones start evaporating, leading to the shortest path sustaining the most pheromones for other ants to be attracted to. Step 2: Other ants follow the pheromone trails, making the shortest trail accumulate more pheromones. Step 3: The shortest trail is reinforced through a feedback loop giving us our solution.
-</em></p>
-=======
 <p align="center"><em> Figure 1: Diagram representation of Ant Colony Optimization (ACO)</em></p>
 
 <p align="center">
@@ -124,7 +120,6 @@ An example case can be seen in Figure 2 where:
 - Step 3: Other ants (4 and 5) follow the pheromone trails, making the shortest trail accumulate more pheromones.
 - Step 4: The shortest trail is reinforced through a feedback loop giving us our solution.
 
->>>>>>> Stashed changes
 
 ## Feature Comparison
 
@@ -184,8 +179,6 @@ In addition, medical images contain sensitive patient information, making data p
 
 ### Ethical and Legal Implications
 The ethical principles of healthcare, such as beneficence, non-maleficence, and respect for patient autonomy, must be embedded in the design and implementation of algorithms in decision-making processes in the medical context. Legal accountability is another critical consideration. Clear guidelines must be established to address liability in cases of misdiagnosis or data misuse. Regulatory authorities must strengthen legal frameworks to address the ethical, legal, and socio-economic (ELSE) implications of AI in healthcare. Transparency and explainability in AI models are also essential. Healthcare providers must be able to understand and trust the decisions made by algorithms, which requires developing models that are both transparent and interpretable. 
-<<<<<<< Updated upstream
-=======
 
 ## Bibliography
 - Berry, Hugues, and Olivier Temam. "Modeling Self-Developing Biological Neural Networks." Neurocomputing, vol. 70, no. 16-18, 2007, pp. 2723-2734. Elsevier, DOI: 10.1016/j.neucom.2006.06.013.
@@ -198,9 +191,4 @@ Khorram, Bahar, and Mehran Yazdi. "A New Optimized Thresholding Method Using Ant
 - Li, Y., H. Zhang, and L. Cheng. "A New Approach to Image Segmentation Based on Neutrosophic Filtering and Level Set Method." IEEE Transactions on Cybernetics, vol. 47, no. 10, 2017, pp. 3940-3951. IEEE, DOI: 10.1109/TCYB.2016.2618898.
 - Maniezzo, Vittorio, and Antonella Carbonaro. "Ant Colony Optimization: An Overview." SpringerLink, Springer US, 1 Jan. 1970, DOI: 10.1007/978-1-4615-1507-4_21.
 - Wang, Xiao-Nian, Yuan-Jing Feng, and Zu-Ren Feng. "Ant Colony Optimization for Image Segmentation." 2005 International Conference on Machine Learning and Cybernetics, vol. 9, IEEE, 2005, pp. 5355-5360. DOI: 10.1109/ICMLC.2005.1527890.
-- IEEE Xplore Articles:
-  
-  "ANT Algorithms for Discrete Optimization." MIT Press Journals & Magazine, IEEE Xplore, ieeexplore.ieee.org/abstract/document/6787854. Accessed 7 Mar. 2025.
-
-  "Ant Colony Optimization." IEEE Journals & Magazine, IEEE Xplore, ieeexplore.ieee.org/abstract/document/4129846. Accessed 7 Mar. 2025.
->>>>>>> Stashed changes
+- IEEE Xplore Articles: "ANT Algorithms for Discrete Optimization." MIT Press Journals & Magazine, IEEE Xplore, ieeexplore.ieee.org/abstract/document/6787854. Accessed 7 Mar. 2025.  "Ant Colony Optimization." IEEE Journals & Magazine, IEEE Xplore, ieeexplore.ieee.org/abstract/document/4129846. Accessed 7 Mar. 2025.
