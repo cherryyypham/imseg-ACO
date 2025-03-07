@@ -9,12 +9,12 @@
 ## SET-UP INSTRUCTIONS
 ### Create a virtual environment
 ```
-python -m venv env
+python -m venv venv
 ```
 
 ### Activate the virtual environment on macOS/Linux:
 ```
-source aco_env/bin/activate
+source venv/bin/activate
 ```
 
 ### Install dependencies
@@ -24,7 +24,7 @@ pip install -r requirements.txt
 
 ### Register the kernel with Jupyter
 ```
-python -m ipykernel install --user --name=env --display-name="Python (ACO Segmentation)"
+python -m ipykernel install --user --name=venv --display-name="Python (ACO Segmentation)"
 ```
 
 ## USAGE

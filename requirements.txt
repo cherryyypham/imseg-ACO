@@ -6,3 +6,4 @@ jupyter>=1.0.0
 notebook>=6.3.0
 ipykernel>=6.0.0
 IPython>=7.0.0
+scikit-learn>=1.6.1
