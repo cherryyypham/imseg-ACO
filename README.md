@@ -106,7 +106,7 @@ ACO simulates a colony of ants moving through a graph, looking for optimal paths
    - Stopping conditions: fixed iterations, stagnation, or time limit.
 
 <p align="center">
-  <img src="http://some_place.com/image.png" />
+  <img src="aco_diagram.PNG" />
 </p>
 <p align="center"><em> Figure 1: Diagram representation of Ant Colony Optimization. Step 1: Ants mark possible trails from food to nest using their pheromones. The pheromones start evaporating, leading to the shortest path sustaining the most pheromones for other ants to be attracted to. Step 2: Other ants follow the pheromone trails, making the shortest trail accumulate more pheromones. Step 3: The shortest trail is reinforced through a feedback loop giving us our solution.
 </em></p>
