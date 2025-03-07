@@ -1,90 +1,141 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from skimage import filters
 from scipy import ndimage
 import random
 from IPython.display import clear_output
-from skimage import filters
+from sklearn.cluster import KMeans
 
 class AntColonyOptimization:
-  # Initialize ACO parameters
-  def __init__(self, image, ants=100, iterations=50, alpha=1.0, beta=2.0, p=0.5,
-                  q=100.0, tau_0=0.1, update_strat='as'):
-    # Defined parameters
-    self.image = image               # array
-    self.height, self.width = image.shape
-    self.ants = ants                 # int: num ants in colony
-    self.iterations = iterations     # int: num iterations for algo
-    self.alpha = alpha               # float: pheromone importance factor
-    self.beta = beta                 # float: heuristic importance factor
-    self.p = p                       # float: pheromone evaporation rate
-    self.q = q                       # float: pheromone deposit factor
-    self.tau_0 = tau_0               # float: initial pheromone value
-    self.update_strat = update_strat # str: {"ib", "as", "bs"}
-    # http://www.scholarpedia.org/article/Ant_colony_optimization#ConstructAntSolutions
-    # I actually don't know what "as-update" does
+    # Initialize ACO parameters
+    def __init__(self, image, n_segments=5, ants=100, iterations=50, alpha=1.0, beta=2.0, p=0.5,
+                q=100.0, tau_0=0.1):
+        # Defined parameters
+        self.image = image               # array
+        self.height, self.width = image.shape
+        self.n_segments = n_segments     # int: number of segments to identify
+        self.ants = ants                 # int: num ants in colony
+        self.iterations = iterations     # int: num iterations for algo
+        self.alpha = alpha               # float: pheromone importance factor
+        self.beta = beta                 # float: heuristic importance factor
+        self.p = p                       # float: pheromone evaporation rate
+        self.q = q                       # float: pheromone deposit factor
+        self.tau_0 = tau_0               # float: initial pheromone value
 
-    # Initialize pheromone matrix
-    self.tau = np.ones((self.height, self.width)) * tau_0
+        # Initialize pheromone matrix - one for each potential segment
+        self.tau = np.ones((self.n_segments, self.height, self.width)) * tau_0
 
-    # Simplified image into edges (replacable methods?)
-    self.edge_info = filters.sobel(image)
-    self.edge_info = self.edge_info / np.max(self.edge_info)
+        # Edge information
+        self.edge_info = filters.sobel(image)
+        self.edge_info = self.edge_info / np.max(self.edge_info)
 
-    # Heuristic information based on edge information
-    self.n = 1.0 / (self.edge_info + 0.1)
+        # Heuristic information based on edge information
+        self.n = 1.0 / (self.edge_info + 0.1)
 
-    # Best solutions tracking
-    self.best_segmentation = None  # Best-so-far solution (s^bs)
-    self.best_fitness = float('-inf')
-    self.iteration_best_segmentation = None  # Iteration-best solution (s^ib)
-    self.iteration_best_fitness = float('-inf')
+        # Initialize probability maps for each segment
+        self.probability_maps = np.zeros((self.n_segments, self.height, self.width))
+        
+        # Create initial segmentation seeds using k-means
+        self.initialize_kmeans_seeds()
+        
+        # Best solutions tracking
+        self.best_segmentation = None
+        self.best_fitness = float('-inf')
 
-  def run(self, visualize_progress=True):
+    def initialize_kmeans_seeds(self):
+        """Initialize segment seeds using k-means clustering"""
+        # Reshape image for k-means
+        pixels = self.image.reshape(-1, 1)
+        
+        # Apply k-means clustering
+        kmeans = KMeans(n_clusters=self.n_segments, random_state=42)
+        labels = kmeans.fit_predict(pixels)
+        
+        # Reshape labels back to image dimensions
+        self.segment_labels = labels.reshape(self.height, self.width)
+        
+        # Create initial probability maps for each segment
+        for segment in range(self.n_segments):
+            # Initialize higher pheromone for pixels in this segment
+            self.tau[segment][self.segment_labels == segment] = self.tau_0 * 3
+            
+            # Initialize probability map for this segment
+            self.probability_maps[segment][self.segment_labels == segment] = 1.0
+
+    def run(self, visualize_progress=True):
         for iteration in range(self.iterations):
-            # Initialize ant variables
-            ant_positions = [(random.randint(0, self.height-1), random.randint(0, self.width-1))
-                            for _ in range(self.ants)]
-            ant_paths = [[] for _ in range(self.ants)]
-            max_steps = (self.height * self.width) // 20
-
-            # Update ant positions based on ACO probability
-            for ant_i in range(self.ants):
-                current_pos = ant_positions[ant_i]
-                ant_paths[ant_i].append(current_pos)
-
-                for _ in range(max_steps):
-                    next_positions = self._get_neighbors(current_pos)
-
-                    if not next_positions:
-                        break
-
-                    next_pos = self._choose_next_position(current_pos, next_positions)
-                    current_pos = next_pos
+            print(f"Running Iteration {iteration}")
+            # Arrays to store ant paths for each segment
+            all_segment_paths = [[] for _ in range(self.n_segments)]
+            
+            # For each segment, run ants
+            for segment in range(self.n_segments):
+                # Initialize ant positions based on segment probability
+                ant_positions = self._initialize_ant_positions(segment)
+                ant_paths = [[] for _ in range(self.ants)]
+                max_steps = (self.height * self.width) // 20
+                
+                # Each ant explores based on pheromone for this segment
+                for ant_i in range(self.ants):
+                    current_pos = ant_positions[ant_i]
                     ant_paths[ant_i].append(current_pos)
-
+                    
+                    for _ in range(max_steps):
+                        next_positions = self._get_neighbors(current_pos)
+                        
+                        if not next_positions:
+                            break
+                        
+                        next_pos = self._choose_next_position(current_pos, next_positions, segment)
+                        current_pos = next_pos
+                        ant_paths[ant_i].append(current_pos)
+                
+                all_segment_paths[segment] = ant_paths
+            
             # Create segmentations from ant paths
-            segmentations = self._create_segmentations(ant_paths)
-
-            # Check fitness value for convergence
-            fitness_values = [self._evaluate_fitness(seg) for seg in segmentations]
-
-            # Update best segmentation
-            i_best = np.argmax(fitness_values)
-            if fitness_values[i_best] > self.best_fitness:
-                self.best_segmentation = segmentations[i_best]
-                self.best_fitness = fitness_values[i_best]
-
-            # Update pheromone
-            self._update_pheromone(ant_paths, fitness_values)
-
+            segmentations = self._create_segmentations(all_segment_paths)
+            
+            # Evaluate fitness of the overall segmentation
+            fitness = self._evaluate_fitness(segmentations)
+            
+            # Update best segmentation if better
+            if fitness > self.best_fitness:
+                self.best_segmentation = segmentations
+                self.best_fitness = fitness
+            
+            # Update pheromone trails for each segment
+            self._update_pheromone(all_segment_paths, segmentations, fitness)
+            
+            # Update probability maps for each segment
+            self._update_probability_maps()
+            
             # Visualize progress
             if visualize_progress and (iteration % 5 == 0 or iteration == self.iterations - 1):
                 clear_output(wait=True)
-                self._visualize_progress(iteration)
-
+                self._visualize_progress(iteration, segmentations)
+        
         return self.best_segmentation
 
-  def _get_neighbors(self, pos):
+    def _initialize_ant_positions(self, segment):
+        """Initialize ant positions with bias towards the segment"""
+        positions = []
+        for _ in range(self.ants):
+            # Place ant on a pixel likely to belong to this segment
+            if random.random() < 0.7:
+                # Get positions where probability > 0.5
+                high_prob_positions = np.where(self.probability_maps[segment] > 0.5)
+                if len(high_prob_positions[0]) > 0:
+                    idx = random.randint(0, len(high_prob_positions[0]) - 1)
+                    positions.append((high_prob_positions[0][idx], high_prob_positions[1][idx]))
+                else:
+                    # Random position if no high probability positions
+                    positions.append((random.randint(0, self.height-1), random.randint(0, self.width-1)))
+            else:
+                # Random position
+                positions.append((random.randint(0, self.height-1), random.randint(0, self.width-1)))
+        return positions
+
+    def _get_neighbors(self, pos):
         i, j = pos
         neighbors = []
 
@@ -101,111 +152,153 @@ class AntColonyOptimization:
 
         return neighbors
 
-  def _choose_next_position(self, current_pos, next_positions):
-      probabilities = []
+    def _choose_next_position(self, current_pos, next_positions, segment):
+        """Choose next position based on pheromone and heuristic for the specific segment"""
+        probabilities = []
 
-      for pos in next_positions:
-          i, j = pos
-          # Calculate ACO probability
-          pheromone_val = self.tau[i, j] ** self.alpha
-          heuristic_val = self.n[i, j] ** self.beta
-          probability = pheromone_val * heuristic_val
-          probabilities.append(probability)
+        for pos in next_positions:
+            i, j = pos
+            # Calculate ACO probability for this segment
+            pheromone_val = self.tau[segment, i, j] ** self.alpha
+            heuristic_val = self.n[i, j] ** self.beta
+            probability = pheromone_val * heuristic_val
+            probabilities.append(probability)
 
-      # Normalize probabilities
-      total = sum(probabilities)
-      if total == 0:
-          return random.choice(next_positions)
+        # Normalize probabilities
+        total = sum(probabilities)
+        if total == 0:
+            return random.choice(next_positions)
 
-      probabilities = [p / total for p in probabilities]
+        probabilities = [p / total for p in probabilities]
 
-      # Choose next position based randomized probabilities
-      r = random.random()
-      cumsum = 0
-      for i, probability in enumerate(probabilities):
-          cumsum += probability
-          if r <= cumsum:
-              return next_positions[i]
+        # Choose next position based on randomized probabilities
+        r = random.random()
+        cumsum = 0
+        for i, probability in enumerate(probabilities):
+            cumsum += probability
+            if r <= cumsum:
+                return next_positions[i]
 
-      return next_positions[-1]
+        return next_positions[-1]
 
-  def _create_segmentations(self, ant_paths):
-      segmentations = []
+    def _create_segmentations(self, all_segment_paths):
+        """Create segmentation mask for each segment based on ant paths"""
+        # Initialize segmentation masks
+        segmentations = np.zeros((self.n_segments, self.height, self.width), dtype=bool)
+        
+        # For each segment
+        for segment, paths in enumerate(all_segment_paths):
+            segment_mask = np.zeros((self.height, self.width), dtype=bool)
+            
+            # Mark all pixels visited by ants for this segment
+            for path in paths:
+                for i, j in path:
+                    segment_mask[i, j] = True
+            
+            # Apply morphological operations to clean up
+            segment_mask = ndimage.binary_dilation(segment_mask, iterations=2)
+            segment_mask = ndimage.binary_erosion(segment_mask, iterations=1)
+            segment_mask = ndimage.binary_fill_holes(segment_mask)
+            
+            # Store in segmentations array
+            segmentations[segment] = segment_mask
+        
+        # Resolve overlaps
+        final_segmentation = np.zeros((self.height, self.width), dtype=int)
+        
+        for i in range(self.height):
+            for j in range(self.width):
+                # Get segment with maximum probability for this pixel
+                segment_probs = [self.probability_maps[s, i, j] for s in range(self.n_segments)]
+                final_segmentation[i, j] = np.argmax(segment_probs)
+        
+        return final_segmentation
 
-      for path in ant_paths:
-          segmentation = np.zeros((self.height, self.width), dtype=bool)
+    def _evaluate_fitness(self, segmentation):
+        """Evaluate the fitness of a multi-region segmentation"""
+        # Calculate inter-region edge strength
+        edge_fitness = 0
+        region_homogeneity = 0
+        
+        # For each segment
+        for segment in range(self.n_segments):
+            # Get the mask for this segment
+            mask = (segmentation == segment)
+            
+            # Skip if empty segment
+            if np.sum(mask) == 0:
+                continue
+            
+            # Calculate boundary strength
+            boundary = mask ^ ndimage.binary_erosion(mask)
+            if np.sum(boundary) > 0:
+                edge_fitness += np.mean(self.edge_info[boundary])
+            
+            # Calculate region homogeneity
+            region_pixels = self.image[mask]
+            if len(region_pixels) > 1:
+                region_std = np.std(region_pixels)
+                region_homogeneity += 1.0 / (region_std + 0.1)
+        
+        # Penalize if any segment is empty
+        n_empty_segments = sum(1 for segment in range(self.n_segments) 
+                              if np.sum(segmentation == segment) == 0)
+        empty_penalty = 0.5 * n_empty_segments
+        
+        # Calculate overall fitness
+        fitness = edge_fitness + 0.8 * region_homogeneity - empty_penalty
+        
+        return fitness
 
-          for i, j in path:
-              segmentation[i, j] = True
+    def _update_pheromone(self, all_segment_paths, segmentation, fitness):
+        """Update pheromone levels for each segment"""
+        # Evaporation for all segments
+        self.tau *= (1 - self.p)
+        
+        # For each segment
+        for segment in range(self.n_segments):
+            # Get the mask for this segment
+            mask = (segmentation == segment)
+            
+            # Skip if empty segment
+            if np.sum(mask) == 0:
+                continue
+            
+            # Calculate deposit amount
+            q = self.q * fitness / self.n_segments
+            
+            # Update pheromone for this segment's paths
+            for path in all_segment_paths[segment]:
+                for i, j in path:
+                    self.tau[segment, i, j] += q
+            
+            # Boost pheromone in the segment region
+            self.tau[segment][mask] += q * 1.5
 
-          # Use morphological operations to fill gaps and remove small objects
-          segmentation = ndimage.binary_dilation(segmentation, iterations=2)
-          segmentation = ndimage.binary_erosion(segmentation, iterations=1)
-          segmentation = ndimage.binary_fill_holes(segmentation)
+    def _update_probability_maps(self):
+        """Update probability maps for each segment based on pheromone levels"""
+        # Calculate total pheromone at each pixel across all segments
+        total_pheromone = np.sum(self.tau, axis=0)
+        
+        # Calculate probability for each segment
+        for segment in range(self.n_segments):
+            self.probability_maps[segment] = self.tau[segment] / (total_pheromone + 1e-10)
 
-          segmentations.append(segmentation)
-
-      return segmentations
-
-  def _evaluate_fitness(self, segmentation): # not sure if we're keeping this method - read more papers
-      # Calculate the average edge information for the segmentation boundary
-      boundary = segmentation ^ ndimage.binary_erosion(segmentation)
-      if np.sum(boundary) == 0:
-          return float('-inf')
-
-      edge_strength = np.mean(self.edge_info[boundary])
-
-      # Calculate region homogeneity
-      foreground = self.image[segmentation]
-      background = self.image[~segmentation]
-
-      if len(foreground) == 0 or len(background) == 0:
-          return float('-inf')
-
-      fg_std = np.std(foreground) if len(foreground) > 1 else 0
-      bg_std = np.std(background) if len(background) > 1 else 0
-
-      homogeneity = 1.0 / (fg_std + bg_std + 0.1)
-      fitness = edge_strength + 0.5 * homogeneity
-
-      return fitness
-
-  def _update_pheromone(self, ant_paths, fitness_values):
-      # ACO evaporation rule
-      self.tau *= (1 - self.p)
-
-      # Deposit new pheromone based on fitness
-      for path, fitness in zip(ant_paths, fitness_values):
-          if fitness <= 0:
-              continue
-
-          q = self.q * fitness
-
-          for i, j in path:
-              self.tau[i, j] += q
-
-  def _visualize_progress(self, iteration):
-      plt.figure(figsize=(12, 4))
-
-      # Original image
-      plt.subplot(1, 3, 1)
-      plt.imshow(self.image, cmap='gray')
-      plt.title("Original Image")
-      plt.axis('off')
-
-      # Pheromone matrix
-      plt.subplot(1, 3, 2)
-      plt.imshow(self.tau, cmap='hot')
-      plt.title(f"Pheromone Matrix (Iteration {iteration+1})")
-      plt.axis('off')
-
-      # Best segmentation so far
-      plt.subplot(1, 3, 3)
-      if self.best_segmentation is not None:
-          plt.imshow(self.best_segmentation, cmap='gray')
-          plt.title(f"Best Segmentation (Fitness: {self.best_fitness:.4f})")
-      else:
-          plt.title("No valid segmentation yet")
-      plt.axis('off')
-
-      plt.tight_layout()
+    def _visualize_progress(self, iteration, segmentation):
+        """Visualize the current state of segmentation"""
+        plt.figure(figsize=(15, 5))
+        
+        # Original image
+        plt.subplot(1, 2, 1)
+        plt.imshow(self.image, cmap='gray')
+        plt.title("Original Image")
+        plt.axis('off')
+        
+        # Current segmentation
+        plt.subplot(1, 2, 2)
+        plt.imshow(segmentation, cmap='nipy_spectral')
+        plt.title(f"Segmentation (Iteration {iteration+1})")
+        plt.axis('off')
+        
+        plt.tight_layout()
+        plt.show()
