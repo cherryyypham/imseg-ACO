@@ -148,25 +148,25 @@ While ACO successfully extracts edges, it has some limitations, including slow r
 In ACO-based image segmentation, the image is represented as a graph where each pixel corresponds to a node, and edges connect neighboring pixels. In our application, we’re using an 8-neighbor model. The heuristic information for our application is derived from gradient magnitude, namely, the opacity of each pixel as opposed to its neighbors. The goal is to find the optimal set of paths that represents the boundaries of objects or regions within the image. As over-segmentation is a common issue in image segmentation, where the image is divided into too many small regions that make interpretation difficult, our ACO implementation uses morphological operations to fill gaps and remove small objects to simplify the main object regions within the image.
 
 To increase the effectiveness of our image segmentation algorithm, we fine-tune the following parameters in our implementation function run_aco_segmentation() located in main().
-- n_segments: More segments will create a more detailed segmentation.
-- ants: More ants will explore more potential segmentation boundaries but increase computation time.
-- iterations: More iterations give the algorithm more time to converge but increase computation time.
-- alpha: Higher values give more importance to pheromone trails.
-- beta: Higher values give more importance to edge information.
-- p: Higher values cause faster pheromone evaporation.
-- q: Higher values deposit more pheromone which leads to faster convergence.
+- **n_segments**: More segments will create a more detailed segmentation.
+- **ants**: More ants will explore more potential segmentation boundaries but increase computation time.
+- **iterations**: More iterations give the algorithm more time to converge but increase computation time.
+- **alpha**: Higher values give more importance to pheromone trails.
+- **beta**: Higher values give more importance to edge information.
+- **p**: Higher values cause faster pheromone evaporation.
+- **q**: Higher values deposit more pheromone which leads to faster convergence.
 
 Building off of the ACO formulas and methodologies detailed above, our algorithm goes through the following steps:
-- Per each iteration, initializing an array of all image segments (we limit the total number of segments for iteration to 5 for the sake of computing power, result generation speed, and segment clarity!)
+- Per each iteration, we initialize an array of all image segments (we limit the total number of segments for iteration to 5 for the sake of computing power, result generation speed, and segment clarity!)
 - Use ACO to create each segment
-  - Use k-means clustering to create an initial probability per pixel of the image (we increase the pheromone value for clustered segments and assigned positions with higher than 50% probability high_prop_pos).
-  - Then, we deploy ants to explore with a limited number of steps (max_steps).
-  - Each ant will choose its next position from an 8-neighborhood model based on the probability formula detailed in the section above with pheromone value (pheromone_val) and (heuristic_val) being the key influence factors.
+  - Use k-means clustering to create an initial probability per pixel of the image (we increase the pheromone value for clustered segments and assigned positions with higher than 50% probability `high_prop_pos`).
+  - Then, we deploy ants to explore with a limited number of steps (`max_steps`).
+  - Each ant will choose its next position from an 8-neighborhood model based on the probability formula detailed in the section above, with pheromone value (`pheromone_val`) and (`heuristic_val`) being the key influence factors.
   - Then, clean segments are made from ant paths after being passed through morphological operations to clean up any small or trivial segments from ant paths. The segments with the highest probabilities are chosen.
 - After the segments are created per iteration, our ACO model will continue to update pheromone deposit and evaporation as detailed in the above section. The probability map, initially created with k-means clustering, is then updated using a variation of the probability formula defined in the above section.
 - All the clusterings are then masked onto the same image per iteration. 
 
-In the jupyter notebook imseg-ACO.ipynb of our submission is an earlier iteration of our algorithm implementation. Here, we almost used pure ACO and was able to get a reasonable segmentation of the inputted image. However, the ants in this iteration were initialized at random positions, which meant they had to explore the entire image space without any prior knowledge about potential segment boundaries. K-means provides a more informed starting point by grouping similar pixels together based on intensity values. This creates reasonable initial "seeds" for each segment, giving the ACO algorithm a head start.
+In the jupyter notebook `imseg-ACO.ipynb` of our submission is an earlier iteration of our algorithm implementation. Here, we almost used pure ACO and was able to get a reasonable segmentation of the inputted image. However, the ants in this iteration were initialized at random positions, which meant they had to explore the entire image space without any prior knowledge about potential segment boundaries. K-means provides a more informed starting point by grouping similar pixels together based on intensity values. This creates reasonable initial "seeds" for each segment, giving the ACO algorithm a head start.
 
 ## Ethical Analysis
 The integration of advanced algorithms in image segmentation in the medical field has revolutionized diagnostic and treatment processes, offering unprecedented opportunities for precision and efficiency. However, these advancements are accompanied by significant ethical challenges. A recurring theme in the literature highlights data quality and algorithm bias—which directly impacts the effectiveness of models—and data privacy as primary concerns, with various data protection frameworks, such as the one proposed by Kaur et al., offering potential solutions to address these issues. These issues, if unaddressed, can lead to misdiagnosis, discrimination, privacy breaches, and a loss of trust in healthcare systems. This section discusses these ethical concerns and proposes mitigation strategies, drawing on insights from recent literature.
